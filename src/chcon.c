@@ -65,7 +65,8 @@ enum
   DEREFERENCE_OPTION = CHAR_MAX + 1,
   NO_PRESERVE_ROOT,
   PRESERVE_ROOT,
-  REFERENCE_FILE_OPTION
+  REFERENCE_FILE_OPTION,
+  REFERENCE_SYMLINK_OPTION
 };
 
 static struct option const long_options[] =
@@ -76,6 +77,8 @@ static struct option const long_options[] =
   {"no-preserve-root", no_argument, nullptr, NO_PRESERVE_ROOT},
   {"preserve-root", no_argument, nullptr, PRESERVE_ROOT},
   {"reference", required_argument, nullptr, REFERENCE_FILE_OPTION},
+  {"symlink-reference", required_argument, nullptr, REFERENCE_SYMLINK_OPTION},
+  {"symreference", required_argument, nullptr, REFERENCE_SYMLINK_OPTION},
   {"user", required_argument, nullptr, 'u'},
   {"role", required_argument, nullptr, 'r'},
   {"type", required_argument, nullptr, 't'},
@@ -419,7 +422,8 @@ main (int argc, char **argv)
   bool ok;
   bool preserve_root = false;
   bool component_specified = false;
-  char *reference_file = nullptr;
+  char const *reference_file = nullptr;
+  bool deref_reference_file = true;
   int optc;
 
   initialize_main (&argc, &argv);
@@ -466,7 +470,17 @@ main (int argc, char **argv)
           break;
 
         case REFERENCE_FILE_OPTION:
+          if (reference_file)
+            die(EXIT_FAILURE, 0, _("only one --reference or --symlink-reference option allowed"));
           reference_file = optarg;
+          deref_reference_file = true;
+          break;
+
+        case REFERENCE_SYMLINK_OPTION:
+          if (reference_file)
+            die(EXIT_FAILURE, 0, _("only one --reference or --symlink-reference option allowed"));
+          reference_file = optarg;
+          deref_reference_file = false;
           break;
 
         case 'R':
@@ -542,8 +556,11 @@ main (int argc, char **argv)
   if (reference_file)
     {
       char *ref_context = nullptr;
+      int (*Get) (char const *file, char **con) =
+            deref_reference_file ? getfilecon
+                                 : lgetfilecon;
 
-      if (getfilecon (reference_file, &ref_context) < 0)
+      if (Get (reference_file, &ref_context) < 0)
         error (EXIT_FAILURE, errno, _("failed to get security context of %s"),
                quoteaf (reference_file));
 

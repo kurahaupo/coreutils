@@ -36,10 +36,6 @@
   proper_name ("David MacKenzie"), \
   proper_name ("Jim Meyering")
 
-/* The argument to the --reference option.  Use the owner and group IDs
-   of this file.  This file must exist.  */
-static char *reference_file;
-
 /* For long options that have no equivalent short option, use a
    non-character as a pseudo short option, starting with CHAR_MAX + 1.  */
 enum
@@ -48,7 +44,8 @@ enum
   FROM_OPTION,
   NO_PRESERVE_ROOT,
   PRESERVE_ROOT,
-  REFERENCE_FILE_OPTION
+  REFERENCE_FILE_OPTION,
+  REFERENCE_SYMLINK_OPTION
 };
 
 static struct option const long_options[] =
@@ -63,6 +60,8 @@ static struct option const long_options[] =
   {"quiet", no_argument, nullptr, 'f'},
   {"silent", no_argument, nullptr, 'f'},
   {"reference", required_argument, nullptr, REFERENCE_FILE_OPTION},
+  {"symlink-reference", required_argument, nullptr, REFERENCE_SYMLINK_OPTION},
+  {"symreference", required_argument, nullptr, REFERENCE_SYMLINK_OPTION},
   {"verbose", no_argument, nullptr, 'v'},
   {GETOPT_HELP_OPTION_DECL},
   {GETOPT_VERSION_OPTION_DECL},
@@ -184,6 +183,11 @@ main (int argc, char **argv)
   bool ok;
   int optc;
 
+  /* The argument to the --reference option.  Use the owner and group IDs
+     of this file.  This file must exist.  */
+  char const *reference_file = NULL;
+  bool deref_reference_file = true;
+
   initialize_main (&argc, &argv);
   set_program_name (argv[0]);
   setlocale (LC_ALL, "");
@@ -229,7 +233,17 @@ main (int argc, char **argv)
           break;
 
         case REFERENCE_FILE_OPTION:
+          if (reference_file)
+            die(EXIT_FAILURE, 0, _("only one --reference or --symlink-reference option allowed"));
           reference_file = optarg;
+          deref_reference_file = true;
+          break;
+
+        case REFERENCE_SYMLINK_OPTION:
+          if (reference_file)
+            die(EXIT_FAILURE, 0, _("only one --reference or --symlink-reference option allowed"));
+          reference_file = optarg;
+          deref_reference_file = false;
           break;
 
         case FROM_OPTION:
@@ -294,17 +308,19 @@ main (int argc, char **argv)
   if (reference_file)
     {
       struct stat ref_stats;
-      if (stat (reference_file, &ref_stats))
+      int (*Get) (char const *, struct stat *) =
+        deref_reference_file ? stat : lstat;
+      if (Get (reference_file, &ref_stats))
         error (EXIT_FAILURE, errno, _("failed to get attributes of %s"),
                quoteaf (reference_file));
 
       if (chown_mode == CHOWN_CHOWN)
         {
           uid = ref_stats.st_uid;
-          chopt.user_name = uid_to_name (ref_stats.st_uid);
+          chopt.user_name = uid_to_name (uid);
         }
       gid = ref_stats.st_gid;
-      chopt.group_name = gid_to_name (ref_stats.st_gid);
+      chopt.group_name = gid_to_name (gid);
     }
   else
     {
