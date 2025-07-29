@@ -77,84 +77,83 @@ usage (int status)
     emit_try_help ();
   else
     {
-      printf (_("\
-Usage: %s [OPTION]... %s FILE...\n\
-  or:  %s [OPTION]... --reference=RFILE FILE...\n\
-"),
+      printf (_(""
+                "Usage: %s [OPTION]... %s FILE...\n"
+                "  or:  %s [OPTION]... --reference=RFILE FILE...\n"
+                ""),
               program_name,
               chown_mode == CHOWN_CHOWN ? _("[OWNER][:[GROUP]]") : _("GROUP"),
               program_name);
       if (chown_mode == CHOWN_CHOWN)
-        fputs (_("\
-Change the owner and/or group of each FILE to OWNER and/or GROUP.\n\
-With --reference, change the owner and group of each FILE to those of RFILE.\n\
-\n\
-"), stdout);
+        fputs (_(""
+                 "Change the owner and/or group of each FILE to OWNER and/or GROUP.\n"
+                 "With --reference, change the owner and group of each FILE to those of RFILE.\n"
+                 "\n"
+                 ""), stdout);
       else
-        fputs (_("\
-Change the group of each FILE to GROUP.\n\
-With --reference, change the group of each FILE to that of RFILE.\n\
-\n\
-"), stdout);
-      fputs (_("\
-  -c, --changes          like verbose but report only when a change is made\n\
-  -f, --silent, --quiet  suppress most error messages\n\
-  -v, --verbose          output a diagnostic for every file processed\n\
-"), stdout);
-      fputs (_("\
-      --dereference      affect the referent of each symbolic link (this is\n\
-                         the default), rather than the symbolic link itself\n\
-  -h, --no-dereference   affect symbolic links instead of any referenced file\n\
-"), stdout);
-      fputs (_("\
-                         (useful only on systems that can change the\n\
-                         ownership of a symlink)\n\
-"), stdout);
-      fputs (_("\
-      --from=CURRENT_OWNER:CURRENT_GROUP\n\
-                         change the ownership of each file only if\n\
-                         its current owner and/or group match those specified\n\
-                         here. Either may be omitted, in which case a match\n\
-                         is not required for the omitted attribute\n\
-"), stdout);
-      fputs (_("\
-      --no-preserve-root  do not treat '/' specially (the default)\n\
-      --preserve-root    fail to operate recursively on '/'\n\
-"), stdout);
-      fputs (_("\
-      --reference=RFILE  use RFILE's ownership rather than specifying values.\n\
-                         RFILE is always dereferenced if a symbolic link.\n\
-"), stdout);
-      fputs (_("\
-  -R, --recursive        operate on files and directories recursively\n\
-"), stdout);
+        fputs (_(""
+                 "Change the group of each FILE to GROUP.\n"
+                 "With --reference, change the group of each FILE to that of RFILE.\n"
+                 "\n"
+                 ""), stdout);
+      fputs (_(""
+               "  -c, --changes          like verbose but report only when a change is made\n"
+               "  -f, --silent, --quiet  suppress most error messages\n"
+               "  -v, --verbose          output a diagnostic for every file processed\n"
+               ""), stdout);
+      fputs (_(""
+               "      --dereference      affect the referent of each symbolic link (this is\n"
+               "                         the default), rather than the symbolic link itself\n"
+               "  -h, --no-dereference   affect symbolic links instead of any referenced file\n"
+               ""), stdout);
+      fputs (_(""
+               "                         (useful only on systems that can change the\n"
+               "                         ownership of a symlink)\n"
+               ""), stdout);
+      fputs (_(""
+               "      --from=CURRENT_OWNER:CURRENT_GROUP\n"
+               "                         change the ownership of each file only if\n"
+               "                         its current owner and/or group match those specified\n"
+               "                         here. Either may be omitted, in which case a match\n"
+               "                         is not required for the omitted attribute\n"
+               ""), stdout);
+      fputs (_(""
+               "      --no-preserve-root  do not treat '/' specially (the default)\n"
+               "      --preserve-root    fail to operate recursively on '/'\n"
+               ""), stdout);
+      fputs (_(""
+               "      --reference=RFILE  use RFILE's ownership rather than specifying values\n"
+               ""), stdout);
+      fputs (_(""
+               "  -R, --recursive        operate on files and directories recursively\n"
+               ""), stdout);
       emit_symlink_recurse_options ("-P");
       fputs (HELP_OPTION_DESCRIPTION, stdout);
       fputs (VERSION_OPTION_DESCRIPTION, stdout);
       if (chown_mode == CHOWN_CHOWN)
-        fputs (_("\
-\n\
-Owner is unchanged if missing.  Group is unchanged if missing, but changed\n\
-to login group if implied by a ':' following a symbolic OWNER.\n\
-OWNER and GROUP may be numeric as well as symbolic.\n\
-"), stdout);
+        fputs (_(""
+                 "\n"
+                 "Owner is unchanged if missing.  Group is unchanged if missing, but changed\n"
+                 "to login group if implied by a ':' following a symbolic OWNER.\n"
+                 "OWNER and GROUP may be numeric as well as symbolic.\n"
+                 ""), stdout);
 
       if (chown_mode == CHOWN_CHOWN)
-        printf (_("\
-\n\
-Examples:\n\
-  %s root /u        Change the owner of /u to \"root\".\n\
-  %s root:staff /u  Likewise, but also change its group to \"staff\".\n\
-  %s -hR root /u    Change the owner of /u and subfiles to \"root\".\n\
-"),
-              program_name, program_name, program_name);
+        printf (_(""
+                  "\n"
+                  "Examples:\n"
+                  "  %s root /u        Change the owner of /u to \"root\".\n"
+                  "  %s root:staff /u  Likewise, but also change its group to \"staff\".\n"
+                  "  %s -hR root /u    Change the owner of /u and subfiles to \"root\".\n"
+                  ""),
+                program_name, program_name, program_name);
       else
-        printf (_("\
-\n\
-Examples:\n\
-  %s staff /u      Change the group of /u to \"staff\".\n\
-  %s -hR staff /u  Change the group of /u and subfiles to \"staff\".\n\
-"),
+        printf (_(""
+                  "\n"
+                  "Examples:\n"
+                  "  %s staff /u      Change the group of /u to \"staff\".\n"
+                  "  %s -hR staff /u  Change the group of /u and subfiles to \"staff\".\n"
+                  ""),
               program_name, program_name);
       emit_ancillary_info (PROGRAM_NAME);
     }

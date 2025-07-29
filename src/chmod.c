@@ -417,45 +417,44 @@ usage (int status)
     emit_try_help ();
   else
     {
-      printf (_("\
-Usage: %s [OPTION]... MODE[,MODE]... FILE...\n\
-  or:  %s [OPTION]... OCTAL-MODE FILE...\n\
-  or:  %s [OPTION]... --reference=RFILE FILE...\n\
-"),
+      printf (_(""
+                "Usage: %s [OPTION]... MODE[,MODE]... FILE...\n"
+                "  or:  %s [OPTION]... OCTAL-MODE FILE...\n"
+                "  or:  %s [OPTION]... --reference=RFILE FILE...\n"
+                ""),
               program_name, program_name, program_name);
-      fputs (_("\
-Change the mode of each FILE to MODE.\n\
-With --reference, change the mode of each FILE to that of RFILE.\n\
-\n\
-"), stdout);
-      fputs (_("\
-  -c, --changes          like verbose but report only when a change is made\n\
-  -f, --silent, --quiet  suppress most error messages\n\
-  -v, --verbose          output a diagnostic for every file processed\n\
-"), stdout);
-      fputs (_("\
-      --dereference      affect the referent of each symbolic link,\n\
-                           rather than the symbolic link itself\n\
-  -h, --no-dereference   affect each symbolic link, rather than the referent\n\
-"), stdout);
-      fputs (_("\
-      --no-preserve-root  do not treat '/' specially (the default)\n\
-      --preserve-root    fail to operate recursively on '/'\n\
-"), stdout);
-      fputs (_("\
-      --reference=RFILE  use RFILE's mode instead of specifying MODE values.\n\
-                         RFILE is always dereferenced if a symbolic link.\n\
-"), stdout);
-      fputs (_("\
-  -R, --recursive        change files and directories recursively\n\
-"), stdout);
+      fputs (_(""
+               "Change the mode of each FILE to MODE.\n"
+               "With --reference, change the mode of each FILE to that of RFILE.\n"
+               "\n"
+               ""), stdout);
+      fputs (_(""
+               "  -c, --changes          like verbose but report only when a change is made\n"
+               "  -f, --silent, --quiet  suppress most error messages\n"
+               "  -v, --verbose          output a diagnostic for every file processed\n"
+               ""), stdout);
+      fputs (_(""
+               "      --dereference      affect the referent of each symbolic link,\n"
+               "                           rather than the symbolic link itself\n"
+               "  -h, --no-dereference   affect each symbolic link, rather than the referent\n"
+               ""), stdout);
+      fputs (_(""
+               "      --no-preserve-root  do not treat '/' specially (the default)\n"
+               "      --preserve-root    fail to operate recursively on '/'\n"
+               ""), stdout);
+      fputs (_(""
+               "      --reference=RFILE  use RFILE's mode instead of specifying MODE values\n"
+               ""), stdout);
+      fputs (_(""
+               "  -R, --recursive        change files and directories recursively\n"
+               ""), stdout);
       emit_symlink_recurse_options ("-H");
       fputs (HELP_OPTION_DESCRIPTION, stdout);
       fputs (VERSION_OPTION_DESCRIPTION, stdout);
-      fputs (_("\
-\n\
-Each MODE is of the form '[ugoa]*([-+=]([rwxXst]*|[ugo]))+|[-+=][0-7]+'.\n\
-"), stdout);
+      fputs (_(""
+               "\n"
+               "Each MODE is of the form '[ugoa]*([-+=]([rwxXst]*|[ugo]))+|[-+=][0-7]+'.\n"
+               ""), stdout);
       emit_ancillary_info (PROGRAM_NAME);
     }
   exit (status);
@@ -573,9 +572,9 @@ main (int argc, char **argv)
           if (reference_file)
             die(EXIT_FAILURE, 0, _("only one --reference"
 #ifdef CAN_CHMOD_SYMLINK
-            " or --symlink-reference"
+                                   " or --symlink-reference"
 #endif
-            " option allowed"));
+                                   " option allowed"));
           reference_file = optarg;
 #ifdef CAN_CHMOD_SYMLINK
           deref_reference_file = true;

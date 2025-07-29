@@ -213,40 +213,42 @@ usage (int status)
   else
     {
       printf (_("Usage: %s [OPTION]... FILE...\n"), program_name);
-      fputs (_("\
-Update the access and modification times of each FILE to the current time.\n\
-\n\
-A FILE argument that does not exist is created empty, unless -c or -h\n\
-is supplied.\n\
-\n\
-A FILE argument string of - is handled specially and causes touch to\n\
-change the times of the file associated with standard output.\n\
-"), stdout);
+      fputs (_(""
+               "Update the access and modification times of each FILE to the current time.\n"
+               "\n"
+               "A FILE argument that does not exist is created empty, unless -c or -h\n"
+               "is supplied.\n"
+               "\n"
+               "A FILE argument string of - is handled specially and causes touch to\n"
+               "change the times of the file associated with standard output.\n"
+               ""), stdout);
 
       emit_mandatory_arg_note ();
 
-      fputs (_("\
-  -a                     change only the access time\n\
-  -c, --no-create        do not create any files\n\
-  -d, --date=STRING      parse STRING and use it instead of current time\n\
-  -f                     (ignored)\n\
-"), stdout);
-      fputs (_("\
-  -h, --no-dereference   affect each symbolic link instead of any referenced\n\
-                         file (useful only on systems that can change the\n\
-                         timestamps of a symlink)\n\
-  -m                     change only the modification time\n\
-"), stdout);
-      fputs (_("\
-  -r, --reference=FILE   use this file's times instead of current time\n\
-  -t [[CC]YY]MMDDhhmm[.ss]  use specified time instead of current time,\n\
-                         with a date-time format that differs from -d's\n\
-"), stdout);
-      fputs (_("\
-      --time=WORD        specify which time to change:\n\
-                           access time (-a): 'access', 'atime', 'use';\n\
-                           modification time (-m): 'modify', 'mtime'\n\
-"), stdout);
+      fputs (_(""
+               "  -a                     change only the access time\n"
+               "  -c, --no-create        do not create any files\n"
+               "  -d, --date=DTSPEC      parse DTSPEC and use it instead of current time\n"
+               "  -f                     (ignored)\n"
+               ""), stdout);
+      fputs (_(""
+               "  -h, --no-dereference   affect each symbolic link instead of any referenced\n"
+               "                         file (useful only on systems that can change the\n"
+               "                         timestamps of a symlink)\n"
+               "  -m                     change only the modification time\n"
+               ""), stdout);
+      fputs (_(""
+               "  -r, --reference=FILE   use this file's times instead of current time\n"
+               "  -t STAMP               use [[CC]YY]MMDDhhmm[.ss] instead of current time;\n"
+               "                         (NB: STAMP & DTSPEC have different formats)\n"
+               ""), stdout);
+      fputs (_(""
+               "      --time=WORD        specify which time to change; when WORD is:\n"
+               "                         'access', 'atime', or 'use': change access time\n"
+               "                                                      (equivalent to -a);\n"
+               "                         'modify' or 'mtime':         change modification time\n"
+               "                                                      (equivalent to -m).\n"
+               ""), stdout);
       fputs (HELP_OPTION_DESCRIPTION, stdout);
       fputs (VERSION_OPTION_DESCRIPTION, stdout);
       emit_ancillary_info (PROGRAM_NAME);
