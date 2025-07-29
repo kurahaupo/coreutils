@@ -557,12 +557,15 @@ main (int argc, char **argv)
             diagnose_surprises = true;
           }
           break;
+
         case NO_PRESERVE_ROOT:
           preserve_root = false;
           break;
+
         case PRESERVE_ROOT:
           preserve_root = true;
           break;
+
         case REFERENCE_FILE_OPTION:
           if (reference_file)
             die(EXIT_FAILURE, 0, _("only one --reference"
@@ -575,6 +578,7 @@ main (int argc, char **argv)
           deref_reference_file = true;
 #endif
           break;
+
         case REFERENCE_SYMLINK_OPTION:
 #ifdef CAN_CHMOD_SYMLINK
           if (reference_file)
@@ -585,18 +589,23 @@ main (int argc, char **argv)
           /* don't complain about enum lacking case */
 #endif
           break;
+
         case 'R':
           recurse = true;
           break;
+
         case 'c':
           verbosity = V_changes_only;
           break;
+
         case 'f':
           force_silent = true;
           break;
+
         case 'v':
           verbosity = V_high;
           break;
+
         case_GETOPT_HELP_CHAR;
         case_GETOPT_VERSION_CHAR (PROGRAM_NAME, AUTHORS);
         default:

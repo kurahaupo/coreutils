@@ -571,7 +571,7 @@ scan_entries (idx_t n, struct gl_utmp const *utmp_buf)
       if (!ttyname_b)
         return;
       if (STRNCMP_LIT (ttyname_b, "/dev/") == 0)
-        ttyname_b += sizeof "/dev/" - 1;	/* Discard /dev/ prefix.  */
+        ttyname_b += sizeof "/dev/" - 1;        /* Discard /dev/ prefix.  */
     }
 
   while (n--)
@@ -806,19 +806,19 @@ main (int argc, char **argv)
 
   switch (argc - optind)
     {
-    case 2:			/* who <blurf> <glop> */
+    case 2:                     /* who <blurf> <glop> */
       my_line_only = true;
       FALLTHROUGH;
     case -1:
-    case 0:			/* who */
+    case 0:                     /* who */
       who (UTMP_FILE, READ_UTMP_CHECK_PIDS);
       break;
 
-    case 1:			/* who <utmp file> */
+    case 1:                     /* who <utmp file> */
       who (argv[optind], 0);
       break;
 
-    default:			/* lose */
+    default:                    /* lose */
       error (0, 0, _("extra operand %s"), quote (argv[optind + 2]));
       usage (EXIT_FAILURE);
     }
