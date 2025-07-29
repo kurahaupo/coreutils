@@ -100,20 +100,25 @@ enum
   DEREFERENCE_OPTION = CHAR_MAX + 1,
   NO_PRESERVE_ROOT,
   PRESERVE_ROOT,
-  REFERENCE_FILE_OPTION
+  REFERENCE_FILE_OPTION,
+  REFERENCE_SYMLINK_OPTION
 };
 
 static struct option const long_options[] =
 {
   {"changes", no_argument, nullptr, 'c'},
   {"dereference", no_argument, nullptr, DEREFERENCE_OPTION},
-  {"recursive", no_argument, nullptr, 'R'},
   {"no-dereference", no_argument, nullptr, 'h'},
   {"no-preserve-root", no_argument, nullptr, NO_PRESERVE_ROOT},
   {"preserve-root", no_argument, nullptr, PRESERVE_ROOT},
   {"quiet", no_argument, nullptr, 'f'},
+  {"recursive", no_argument, nullptr, 'R'},
   {"reference", required_argument, nullptr, REFERENCE_FILE_OPTION},
   {"silent", no_argument, nullptr, 'f'},
+#ifdef CAN_CHMOD_SYMLINK
+  {"symlink-reference", required_argument, nullptr, REFERENCE_SYMLINK_OPTION},
+  {"symreference", required_argument, nullptr, REFERENCE_SYMLINK_OPTION},
+#endif
   {"verbose", no_argument, nullptr, 'v'},
   {GETOPT_HELP_OPTION_DECL},
   {GETOPT_VERSION_OPTION_DECL},
@@ -466,6 +471,9 @@ main (int argc, char **argv)
   bool ok;
   bool preserve_root = false;
   char const *reference_file = nullptr;
+#ifdef CAN_CHMOD_SYMLINK
+  bool deref_reference_file = true;
+#endif
   int c;
   int bit_flags = FTS_COMFOLLOW | FTS_PHYSICAL;
 
@@ -556,7 +564,26 @@ main (int argc, char **argv)
           preserve_root = true;
           break;
         case REFERENCE_FILE_OPTION:
+          if (reference_file)
+            die(EXIT_FAILURE, 0, _("only one --reference"
+#ifdef CAN_CHMOD_SYMLINK
+            " or --symlink-reference"
+#endif
+            " option allowed"));
           reference_file = optarg;
+#ifdef CAN_CHMOD_SYMLINK
+          deref_reference_file = true;
+#endif
+          break;
+        case REFERENCE_SYMLINK_OPTION:
+#ifdef CAN_CHMOD_SYMLINK
+          if (reference_file)
+            die(EXIT_FAILURE, 0, _("only one --reference or --symlink-reference option allowed"));
+          reference_file = optarg;
+          deref_reference_file = false;
+#else
+          /* don't complain about enum lacking case */
+#endif
           break;
         case 'R':
           recurse = true;
@@ -616,10 +643,22 @@ main (int argc, char **argv)
 
   if (reference_file)
     {
+#ifdef CAN_CHMOD_SYMLINK
+      struct stat ref_stats;
+      int (*Get) (char const *, struct stat *) =
+        deref_reference_file ? stat : lstat;
+      if (Get (reference_file, &ref_stats))
+        die (EXIT_FAILURE, errno, _("failed to get attributes of %s"),
+             quoteaf (reference_file));
+
+      #warning "linking will fail if ‘make_node_op_equals’ is static in gnulib/modechange.c"
+      change = make_node_op_equals (ref_stats.st_mode, CHMOD_MODE_BITS);
+#else
       change = mode_create_from_ref (reference_file);
       if (!change)
         error (EXIT_FAILURE, errno, _("failed to get attributes of %s"),
                quoteaf (reference_file));
+#endif
     }
   else
     {
