@@ -308,9 +308,10 @@ main (int argc, char **argv)
   if (reference_file)
     {
       struct stat ref_stats;
-      int (*Get) (char const *, struct stat *) =
-        deref_reference_file ? stat : lstat;
-      if (Get (reference_file, &ref_stats))
+      /* Don't use ((deref_reference_file?stat:lstat)(args...)), since lstat
+         and/or stat might be function-like macros.  */
+      if (deref_reference_file ?  stat (reference_file, &ref_stats)
+                               : lstat (reference_file, &ref_stats))
         error (EXIT_FAILURE, errno, _("failed to get attributes of %s"),
                quoteaf (reference_file));
 

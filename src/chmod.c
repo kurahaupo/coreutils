@@ -654,9 +654,8 @@ main (int argc, char **argv)
     {
 #ifdef CAN_CHMOD_SYMLINK
       struct stat ref_stats;
-      int (*Get) (char const *, struct stat *) =
-        deref_reference_file ? stat : lstat;
-      if (Get (reference_file, &ref_stats))
+      if (deref_reference_file ?  stat (reference_file, &ref_stats)
+                               : lstat (reference_file, &ref_stats))
         die (EXIT_FAILURE, errno, _("failed to get attributes of %s"),
              quoteaf (reference_file));
 

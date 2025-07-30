@@ -341,10 +341,10 @@ main (int argc, char **argv)
   if (use_ref)
     {
       struct stat ref_stats;
-      /* Don't use (no_dereference?lstat:stat) (args), since stat
-         might be an object-like macro.  */
+      /* Don't use (no_dereference?lstat:stat) (args...), since lstat
+         and/or stat might be function-like macros.  */
       if (no_dereference ? lstat (ref_file, &ref_stats)
-          : stat (ref_file, &ref_stats))
+                         :  stat (ref_file, &ref_stats))
         error (EXIT_FAILURE, errno,
                _("failed to get attributes of %s"), quoteaf (ref_file));
       newtime[0] = get_stat_atime (&ref_stats);
