@@ -101,6 +101,7 @@ enum
   NO_PRESERVE_ROOT,
   PRESERVE_ROOT,
   REFERENCE_FILE_OPTION,
+  REFERENCE_FOLLOW_OPTION,
   REFERENCE_SYMLINK_OPTION
 };
 
@@ -108,6 +109,7 @@ static struct option const long_options[] =
 {
   {"changes", no_argument, nullptr, 'c'},
   {"dereference", no_argument, nullptr, DEREFERENCE_OPTION},
+  {"follow-reference", required_argument, nullptr, REFERENCE_FOLLOW_OPTION},
   {"no-dereference", no_argument, nullptr, 'h'},
   {"no-preserve-root", no_argument, nullptr, NO_PRESERVE_ROOT},
   {"preserve-root", no_argument, nullptr, PRESERVE_ROOT},
@@ -566,6 +568,7 @@ main (int argc, char **argv)
           preserve_root = true;
           break;
 
+        case REFERENCE_FOLLOW_OPTION:
         case REFERENCE_FILE_OPTION:
           if (reference_file)
             die(EXIT_FAILURE, 0, _("only one --reference"
@@ -586,7 +589,7 @@ main (int argc, char **argv)
           reference_file = optarg;
           deref_reference_file = false;
 #else
-          /* don't complain about enum lacking case */
+          /* don't complain about enum lacking a corresponding case */
 #endif
           break;
 
@@ -653,12 +656,13 @@ main (int argc, char **argv)
   if (reference_file)
     {
 #ifdef CAN_CHMOD_SYMLINK
+      if (deref_reference_file < 0)
+        deref_reference_file = false;
       struct stat ref_stats;
       if (deref_reference_file ?  stat (reference_file, &ref_stats)
                                : lstat (reference_file, &ref_stats))
         die (EXIT_FAILURE, errno, _("failed to get attributes of %s"),
              quoteaf (reference_file));
-
       #warning "linking will fail if ‘make_node_op_equals’ is static in gnulib/modechange.c"
       change = make_node_op_equals (ref_stats.st_mode, CHMOD_MODE_BITS);
 #else

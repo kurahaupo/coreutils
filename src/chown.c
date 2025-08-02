@@ -45,21 +45,23 @@ enum
   NO_PRESERVE_ROOT,
   PRESERVE_ROOT,
   REFERENCE_FILE_OPTION,
+  REFERENCE_FOLLOW_OPTION,
   REFERENCE_SYMLINK_OPTION
 };
 
 static struct option const long_options[] =
 {
-  {"recursive", no_argument, nullptr, 'R'},
   {"changes", no_argument, nullptr, 'c'},
   {"dereference", no_argument, nullptr, DEREFERENCE_OPTION},
+  {"follow-reference", required_argument, nullptr, REFERENCE_FOLLOW_OPTION},
   {"from", required_argument, nullptr, FROM_OPTION},
   {"no-dereference", no_argument, nullptr, 'h'},
   {"no-preserve-root", no_argument, nullptr, NO_PRESERVE_ROOT},
   {"preserve-root", no_argument, nullptr, PRESERVE_ROOT},
   {"quiet", no_argument, nullptr, 'f'},
-  {"silent", no_argument, nullptr, 'f'},
+  {"recursive", no_argument, nullptr, 'R'},
   {"reference", required_argument, nullptr, REFERENCE_FILE_OPTION},
+  {"silent", no_argument, nullptr, 'f'},
   {"symlink-reference", required_argument, nullptr, REFERENCE_SYMLINK_OPTION},
   {"symreference", required_argument, nullptr, REFERENCE_SYMLINK_OPTION},
   {"verbose", no_argument, nullptr, 'v'},
@@ -186,7 +188,7 @@ main (int argc, char **argv)
   /* The argument to the --reference option.  Use the owner and group IDs
      of this file.  This file must exist.  */
   char const *reference_file = NULL;
-  bool deref_reference_file = true;
+  int deref_reference_file = -1;
 
   initialize_main (&argc, &argv);
   set_program_name (argv[0]);
@@ -234,14 +236,20 @@ main (int argc, char **argv)
 
         case REFERENCE_FILE_OPTION:
           if (reference_file)
-            die(EXIT_FAILURE, 0, _("only one --reference or --symlink-reference option allowed"));
+            die(EXIT_FAILURE, 0, _("only one --reference, --follow-reference or --symlink-reference option allowed"));
+          reference_file = optarg;
+          break;
+
+        case REFERENCE_FOLLOW_OPTION:
+          if (reference_file)
+            die(EXIT_FAILURE, 0, _("only one --reference, --follow-reference or --symlink-reference option allowed"));
           reference_file = optarg;
           deref_reference_file = true;
           break;
 
         case REFERENCE_SYMLINK_OPTION:
           if (reference_file)
-            die(EXIT_FAILURE, 0, _("only one --reference or --symlink-reference option allowed"));
+            die(EXIT_FAILURE, 0, _("only one --reference, --follow-reference or --symlink-reference option allowed"));
           reference_file = optarg;
           deref_reference_file = false;
           break;
@@ -307,6 +315,8 @@ main (int argc, char **argv)
 
   if (reference_file)
     {
+      if (deref_reference_file < 0)
+        deref_reference_file = !dereference;
       struct stat ref_stats;
       /* Don't use ((deref_reference_file?stat:lstat)(args...)), since lstat
          and/or stat might be function-like macros.  */

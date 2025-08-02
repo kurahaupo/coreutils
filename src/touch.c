@@ -51,10 +51,7 @@
 static int change_times;
 
 /* (-c) If true, don't create if not already there.  */
-static bool no_create;
-
-/* (-r) If true, use times from a reference file.  */
-static bool use_ref;
+static bool no_create = false;
 
 /* (-h) If true, change the times of an existing symlink, if possible.  */
 static bool no_dereference;
@@ -69,23 +66,26 @@ static bool amtime_now;
 /* New access and modification times to use when setting time.  */
 static struct timespec newtime[2];
 
-/* File to use for -r. */
-static char *ref_file;
-
 /* For long options that have no equivalent short option, use a
    non-character as a pseudo short option, starting with CHAR_MAX + 1.  */
 enum
 {
-  TIME_OPTION = CHAR_MAX + 1
+  REFERENCE_FILE_OPTION = 'r',
+  TIME_OPTION = CHAR_MAX + 1,
+  REFERENCE_FOLLOW_OPTION,
+  REFERENCE_SYMLINK_OPTION
 };
 
 static struct option const longopts[] =
 {
-  {"time", required_argument, nullptr, TIME_OPTION},
-  {"no-create", no_argument, nullptr, 'c'},
   {"date", required_argument, nullptr, 'd'},
-  {"reference", required_argument, nullptr, 'r'},
+  {"follow-reference", required_argument, nullptr, REFERENCE_FOLLOW_OPTION},
+  {"no-create", no_argument, nullptr, 'c'},
   {"no-dereference", no_argument, nullptr, 'h'},
+  {"reference", required_argument, nullptr, REFERENCE_FILE_OPTION},
+  {"symlink-reference", required_argument, nullptr, REFERENCE_SYMLINK_OPTION},
+  {"symreference", required_argument, nullptr, REFERENCE_SYMLINK_OPTION},
+  {"time", required_argument, nullptr, TIME_OPTION},
   {GETOPT_HELP_OPTION_DECL},
   {GETOPT_VERSION_OPTION_DECL},
   {nullptr, 0, nullptr, 0}
@@ -258,9 +258,13 @@ int
 main (int argc, char **argv)
 {
   int c;
-  bool date_set = false;
+  int date_set = 0;
   bool ok = true;
   char const *flex_date = nullptr;
+
+  /* If -r given, use times from a reference file.  */
+  char const *reference_file = NULL;
+  int deref_reference_file = -1;
 
   initialize_main (&argc, &argv);
   set_program_name (argv[0]);
@@ -271,7 +275,7 @@ main (int argc, char **argv)
   atexit (close_stdout);
 
   change_times = 0;
-  no_create = use_ref = false;
+  no_create = false;
 
   while ((c = getopt_long (argc, argv, "acd:fhmr:t:", longopts, nullptr)) != -1)
     {
@@ -287,6 +291,7 @@ main (int argc, char **argv)
 
         case 'd':
           flex_date = optarg;
+          date_set++;
           break;
 
         case 'f':
@@ -300,9 +305,21 @@ main (int argc, char **argv)
           change_times |= CH_MTIME;
           break;
 
-        case 'r':
-          use_ref = true;
-          ref_file = optarg;
+        case REFERENCE_FOLLOW_OPTION:
+          deref_reference_file = true;
+          reference_file = optarg;
+          date_set++;
+          break;
+
+        case REFERENCE_SYMLINK_OPTION:
+          deref_reference_file = false;
+          reference_file = optarg;
+          date_set++;
+          break;
+
+        case 'r': /* == REFERENCE_FILE_OPTION */
+          reference_file = optarg;
+          date_set++;
           break;
 
         case 't':
@@ -312,7 +329,7 @@ main (int argc, char **argv)
                    quote (optarg));
           newtime[0].tv_nsec = 0;
           newtime[1] = newtime[0];
-          date_set = true;
+          date_set++;
           break;
 
         case TIME_OPTION:	/* --time */
@@ -332,24 +349,29 @@ main (int argc, char **argv)
   if (change_times == 0)
     change_times = CH_ATIME | CH_MTIME;
 
-  if (date_set && (use_ref || flex_date))
+  /* Having both -r and -d (once each) is allowed, but
+     any repetition or other combination is forbidden */
+  if (date_set - (flex_date && reference_file) > 1)
     {
       error (0, 0, _("cannot specify times from more than one source"));
       usage (EXIT_FAILURE);
     }
 
-  if (use_ref)
+  if (reference_file)
     {
+      if (deref_reference_file < 0)
+        deref_reference_file = !no_dereference;
       struct stat ref_stats;
       /* Don't use (no_dereference?lstat:stat) (args...), since lstat
          and/or stat might be function-like macros.  */
-      if (no_dereference ? lstat (ref_file, &ref_stats)
-                         :  stat (ref_file, &ref_stats))
+      if (deref_reference_file ?  stat (reference_file, &ref_stats)
+                               : lstat (reference_file, &ref_stats))
         error (EXIT_FAILURE, errno,
-               _("failed to get attributes of %s"), quoteaf (ref_file));
+               _("failed to get timestamps of %s"), quoteaf (reference_file));
       newtime[0] = get_stat_atime (&ref_stats);
       newtime[1] = get_stat_mtime (&ref_stats);
       date_set = true;
+      /* If specifying both --ref=FILE and -d STRING, treat the latter as relative to the mtime of FILE */
       if (flex_date)
         {
           if (change_times & CH_ATIME)
@@ -358,31 +380,29 @@ main (int argc, char **argv)
             newtime[1] = date_relative (flex_date, newtime[1]);
         }
     }
-  else
+  else if (flex_date)
     {
-      if (flex_date)
-        {
-          struct timespec now = current_timespec ();
-          newtime[1] = newtime[0] = date_relative (flex_date, now);
-          date_set = true;
+      struct timespec now = current_timespec ();
+      newtime[1] = newtime[0] = date_relative (flex_date, now);
+      date_set = true;
 
-          /* If neither -a nor -m is specified, treat "-d now" as if
-             it were absent; this lets "touch" succeed more often in
-             the presence of restrictive permissions.  */
-          if (change_times == (CH_ATIME | CH_MTIME)
-              && newtime[0].tv_sec == now.tv_sec
-              && newtime[0].tv_nsec == now.tv_nsec)
-            {
-              /* Check that it really was "-d now", and not a timestamp
-                 that just happens to be the current time.  */
-              struct timespec notnow, notnow1;
-              notnow.tv_sec = now.tv_sec ^ 1;
-              notnow.tv_nsec = now.tv_nsec;
-              notnow1 = date_relative (flex_date, notnow);
-              if (notnow1.tv_sec == notnow.tv_sec
-                  && notnow1.tv_nsec == notnow.tv_nsec)
-                date_set = false;
-            }
+      /* If neither -a nor -m is specified, treat "-d now" as if it were
+         absent (except that we skip the obsolete POSIX 'leading numeric
+         timestamp' handling below); this lets "touch" succeed more often
+         in the presence of restrictive permissions.  */
+      if (change_times == (CH_ATIME | CH_MTIME)
+          && newtime[0].tv_sec == now.tv_sec
+          && newtime[0].tv_nsec == now.tv_nsec)
+        {
+          /* Check that it really was "-d now", and not a timestamp
+             that just happens to be the current time.  */
+          struct timespec notnow, notnow1;
+          notnow.tv_sec = now.tv_sec ^ 1;
+          notnow.tv_nsec = now.tv_nsec;
+          notnow1 = date_relative (flex_date, notnow);
+          if (notnow1.tv_sec == notnow.tv_sec
+              && notnow1.tv_nsec == notnow.tv_nsec)
+            date_set = -1;
         }
     }
 
@@ -416,7 +436,9 @@ main (int argc, char **argv)
       optind++;
     }
 
-  if (!date_set)
+  /* date_set == 0 if no timestamp given;
+              == -1 when flex_date was 'now' */
+  if (date_set <= 0)
     {
       if (change_times == (CH_ATIME | CH_MTIME))
         amtime_now = true;
