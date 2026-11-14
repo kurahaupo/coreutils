@@ -183,14 +183,28 @@ enum mode_type
     control, input, output, local, combination
   };
 
-/* Flags for 'struct mode_info'. */
+/*
+ * Flags for 'struct mode_info'.
+ *
+ * Note: Sanity comes in two flavours: hard and soft.
+ *  - Hard sanity is the traditional behaviour of ‘stty sane’, and is essential
+ *    for a real RS-232 connection using fewer than 8 data bits.
+ *  - Soft sanity is better where an 8-bit clean path is required, especially
+ *    wide character encodings such as UTF-8.
+ */
 enum mode_info_flags
   {
     SANE_SET            = 1U << 0,	/* Set in 'sane' mode. */
     SANE_UNSET          = 1U << 1,	/* Unset in 'sane' mode. */
-    REV                 = 1U << 2,	/* Can be turned off by prepending '-'. */
+    REV                 = 1U << 2,	/* Can be unset by prefacing option name with '-'. */
     OMIT                = 1U << 3,	/* Don't display value. */
-    NO_SETATTR          = 1U << 4,	/* tcsetattr not used to set mode bits.  */
+    NO_SETATTR          = 1U << 4,	/* tcsetattr not used to set mode bits. */
+
+    IF_SOFT_SANE        = 2U << 6,	/* Restrict 'sane' mode to 'soft sane' mode */
+
+    WANT_SOFT_SANE      = 1U << 10,	/* use 'soft sane' mode if this option is also mentioned without leading '-'. */
+    WANT_SOFT_SANE_REV  = 2U << 10,	/* use 'soft sane' mode if this option is also mentioned with leading '-'. */
+ // WANT_SOFT_SANE_ANY  = 3U << 10,	/* use 'soft sane' mode if this option is also mentioned with or without leading '-'. */
   };
 
 /* Each mode.  */
@@ -205,7 +219,7 @@ struct mode_info
 
 static struct mode_info const mode_info[] =
 {
-  {"parenb", control, REV, PARENB, 0},
+  {"parenb", control, WANT_SOFT_SANE_REV | REV, PARENB, 0},
   {"parodd", control, REV, PARODD, 0},
 #ifdef CMSPAR
   {"cmspar", control, REV, CMSPAR, 0},
@@ -213,7 +227,7 @@ static struct mode_info const mode_info[] =
   {"cs5", control, 0, CS5, CSIZE},
   {"cs6", control, 0, CS6, CSIZE},
   {"cs7", control, 0, CS7, CSIZE},
-  {"cs8", control, 0, CS8, CSIZE},
+  {"cs8", control, WANT_SOFT_SANE, CS8, CSIZE},
   {"hupcl", control, REV, HUPCL, 0},
   {"hup", control, REV | OMIT, HUPCL, 0},
   {"cstopb", control, REV, CSTOPB, 0},
@@ -231,7 +245,7 @@ static struct mode_info const mode_info[] =
   {"ignpar", input, REV, IGNPAR, 0},
   {"parmrk", input, REV, PARMRK, 0},
   {"inpck", input, REV, INPCK, 0},
-  {"istrip", input, REV, ISTRIP, 0},
+  {"istrip", input, SANE_UNSET | IF_SOFT_SANE | REV, ISTRIP, 0},
   {"inlcr", input, SANE_UNSET | REV, INLCR, 0},
   {"igncr", input, SANE_UNSET | REV, IGNCR, 0},
   {"icrnl", input, SANE_SET | REV, ICRNL, 0},
@@ -248,7 +262,7 @@ static struct mode_info const mode_info[] =
   {"imaxbel", input, SANE_SET | REV, IMAXBEL, 0},
 #endif
 #ifdef IUTF8
-  {"iutf8", input, SANE_UNSET | REV, IUTF8, 0},
+  {"iutf8", input, SANE_UNSET | WANT_SOFT_SANE | REV, IUTF8, 0},
 #endif
 
   {"opost", output, SANE_SET | REV, OPOST, 0},
@@ -1095,6 +1109,7 @@ settings, CHAR is taken literally, or coded as in ^c, 0x37, 0177 or\n\
   exit (status);
 }
 
+static bool want_soft_sane = false;
 
 /* Apply specified settings to MODE and REQUIRE_SET_ATTR as required.
    If CHECKING is true, this function doesn't interact
@@ -1115,6 +1130,9 @@ apply_settings (bool checking, char const *device_name,
         }								\
     }									\
   while (0)
+
+  if (!getenv("POSIXLY_CORRECT"))
+    want_soft_sane = (mode->c_cflag & (CSIZE | PARENB)) == CS8;
 
   for (int k = 1; k < n_settings; k++)
     {
@@ -1144,6 +1162,8 @@ apply_settings (bool checking, char const *device_name,
                 {
                   match_found = set_mode (&mode_info[i], reversed, mode);
                   *require_set_attr = true;
+                  if (mode_info[i].flags & (reversed ? WANT_SOFT_SANE_REV : WANT_SOFT_SANE))
+                    want_soft_sane = true;
                 }
               else
                 match_found = not_set_attr = true;
@@ -2251,6 +2271,9 @@ sane_mode (struct termios *mode)
   for (int i = 0; mode_info[i].name != NULL; ++i)
     {
       if (mode_info[i].flags & NO_SETATTR)
+        continue;
+
+      if (mode_info[i].flags & IF_SOFT_SANE && !want_soft_sane)
         continue;
 
       if (mode_info[i].flags & SANE_SET)
