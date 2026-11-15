@@ -191,20 +191,35 @@ enum mode_type
  *    for a real RS-232 connection using fewer than 8 data bits.
  *  - Soft sanity is better where an 8-bit clean path is required, especially
  *    wide character encodings such as UTF-8.
+ * To ensure backwards compatibility, hard sanity overrides soft sanity.
  */
 enum mode_info_flags
   {
-    SANE_SET            = 1U << 0,	/* Set in 'sane' mode. */
-    SANE_UNSET          = 1U << 1,	/* Unset in 'sane' mode. */
     REV                 = 1U << 2,	/* Can be unset by prefacing option name with '-'. */
     OMIT                = 1U << 3,	/* Don't display value. */
     NO_SETATTR          = 1U << 4,	/* tcsetattr not used to set mode bits. */
 
-    IF_SOFT_SANE        = 2U << 6,	/* Restrict 'sane' mode to 'soft sane' mode */
+    SET_WHEN_SANE       = 1U << 5,	/* does 'sane' mode set or reset this option? */
+
+    IF_HARD_SANE        = 1U << 6,	/* 'hard sane' mode adjusts this option */
+    IF_SOFT_SANE        = 2U << 6,	/* 'soft sane' mode adjusts this option */
+    IF_SANE             = 3U << 6,	/* both 'sane' modes adjust this option */
+
+    WANT_HARD_SANE      = 1U << 8,	/* use 'hard sane' mode if this option is also mentioned without leading '-'. */
+    WANT_HARD_SANE_REV  = 2U << 8,	/* use 'hard sane' mode if this option is also mentioned with leading '-'. */
+    WANT_HARD_SANE_ANY  = 3U << 8,	/* use 'hard sane' mode if this option is also mentioned with or without leading '-'. */
 
     WANT_SOFT_SANE      = 1U << 10,	/* use 'soft sane' mode if this option is also mentioned without leading '-'. */
     WANT_SOFT_SANE_REV  = 2U << 10,	/* use 'soft sane' mode if this option is also mentioned with leading '-'. */
  // WANT_SOFT_SANE_ANY  = 3U << 10,	/* use 'soft sane' mode if this option is also mentioned with or without leading '-'. */
+
+ // HARD_SANE_SET       = SET_WHEN_SANE   | IF_HARD_SANE,
+ // SOFT_SANE_SET       = SET_WHEN_SANE   | IF_SOFT_SANE,
+    SANE_SET            = SET_WHEN_SANE   | IF_SANE,	/* Set in either 'sane' mode. */
+
+    HARD_SANE_UNSET     =                   IF_HARD_SANE,
+    SOFT_SANE_UNSET     =                   IF_SOFT_SANE,
+    SANE_UNSET          =                   IF_SANE,	/* Unset in either 'sane' mode. */
   };
 
 /* Each mode.  */
@@ -219,14 +234,14 @@ struct mode_info
 
 static struct mode_info const mode_info[] =
 {
-  {"parenb", control, WANT_SOFT_SANE_REV | REV, PARENB, 0},
-  {"parodd", control, REV, PARODD, 0},
+  {"parenb", control, WANT_HARD_SANE | WANT_SOFT_SANE_REV | REV, PARENB, 0},
+  {"parodd", control, WANT_HARD_SANE_ANY | REV, PARODD, 0},
 #ifdef CMSPAR
-  {"cmspar", control, REV, CMSPAR, 0},
+  {"cmspar", control, WANT_HARD_SANE_ANY | REV, CMSPAR, 0},
 #endif
-  {"cs5", control, 0, CS5, CSIZE},
-  {"cs6", control, 0, CS6, CSIZE},
-  {"cs7", control, 0, CS7, CSIZE},
+  {"cs5", control, WANT_HARD_SANE, CS5, CSIZE},
+  {"cs6", control, WANT_HARD_SANE, CS6, CSIZE},
+  {"cs7", control, WANT_HARD_SANE, CS7, CSIZE},
   {"cs8", control, WANT_SOFT_SANE, CS8, CSIZE},
   {"hupcl", control, REV, HUPCL, 0},
   {"hup", control, REV | OMIT, HUPCL, 0},
@@ -242,10 +257,10 @@ static struct mode_info const mode_info[] =
 
   {"ignbrk", input, SANE_UNSET | REV, IGNBRK, 0},
   {"brkint", input, SANE_SET | REV, BRKINT, 0},
-  {"ignpar", input, REV, IGNPAR, 0},
-  {"parmrk", input, REV, PARMRK, 0},
+  {"ignpar", input, WANT_HARD_SANE_REV | REV, IGNPAR, 0},
+  {"parmrk", input, WANT_HARD_SANE_ANY | REV, PARMRK, 0},
   {"inpck", input, REV, INPCK, 0},
-  {"istrip", input, SANE_UNSET | IF_SOFT_SANE | REV, ISTRIP, 0},
+  {"istrip", input, SOFT_SANE_UNSET | REV, ISTRIP, 0},
   {"inlcr", input, SANE_UNSET | REV, INLCR, 0},
   {"igncr", input, SANE_UNSET | REV, IGNCR, 0},
   {"icrnl", input, SANE_SET | REV, ICRNL, 0},
@@ -262,7 +277,7 @@ static struct mode_info const mode_info[] =
   {"imaxbel", input, SANE_SET | REV, IMAXBEL, 0},
 #endif
 #ifdef IUTF8
-  {"iutf8", input, SANE_UNSET | WANT_SOFT_SANE | REV, IUTF8, 0},
+  {"iutf8", input, HARD_SANE_UNSET | WANT_SOFT_SANE | REV, IUTF8, 0},
 #endif
 
   {"opost", output, SANE_SET | REV, OPOST, 0},
@@ -1110,6 +1125,7 @@ settings, CHAR is taken literally, or coded as in ^c, 0x37, 0177 or\n\
 }
 
 static bool want_soft_sane = false;
+static bool want_hard_sane = false;
 
 /* Apply specified settings to MODE and REQUIRE_SET_ATTR as required.
    If CHECKING is true, this function doesn't interact
@@ -1158,15 +1174,17 @@ apply_settings (bool checking, char const *device_name,
         {
           if (streq (arg, mode_info[i].name))
             {
-              if ((mode_info[i].flags & NO_SETATTR) == 0)
+              const enum mode_info_flags f = mode_info[i].flags;
+
+              if ((f & NO_SETATTR) == 0)
                 {
                   match_found = set_mode (&mode_info[i], reversed, mode);
                   *require_set_attr = true;
-                  if (mode_info[i].flags & (reversed ? WANT_SOFT_SANE_REV : WANT_SOFT_SANE))
-                    want_soft_sane = true;
                 }
               else
                 match_found = not_set_attr = true;
+              want_hard_sane |= f & (reversed ? WANT_HARD_SANE_REV : WANT_HARD_SANE);
+              want_soft_sane |= f & (reversed ? WANT_SOFT_SANE_REV : WANT_SOFT_SANE);
               break;
             }
         }
@@ -1934,8 +1952,6 @@ static void
 display_changed (struct termios *mode)
 {
   bool empty_line;
-  tcflag_t *bitsp;
-  unsigned long mask;
   enum mode_type prev_type = control;
 
   display_speed (mode, true);
@@ -1986,9 +2002,11 @@ display_changed (struct termios *mode)
   empty_line = true;
   for (int i = 0; mode_info[i].name != NULL; ++i)
     {
-      if (mode_info[i].flags & OMIT)
+      const enum mode_info_flags f = mode_info[i].flags;
+      if (f & OMIT)
         continue;
-      if (mode_info[i].type != prev_type)
+      const enum mode_type t = mode_info[i].type;
+      if (t != prev_type)
         {
           if (!empty_line)
             {
@@ -1996,23 +2014,27 @@ display_changed (struct termios *mode)
               current_col = 0;
               empty_line = true;
             }
-          prev_type = mode_info[i].type;
+          prev_type = t;
         }
 
-      bitsp = mode_type_flag (mode_info[i].type, mode);
-      mask = mode_info[i].mask ? mode_info[i].mask : mode_info[i].bits;
-      if ((*bitsp & mask) == mode_info[i].bits)
+      if (f & IF_SANE)
         {
-          if (mode_info[i].flags & SANE_UNSET)
+          const tcflag_t b = mode_info[i].bits;
+          const tcflag_t m = mode_info[i].mask | b;
+          const char * const n = mode_info[i].name;
+          const bool enabled = (*mode_type_flag (t, mode) & m) == b;
+
+          if (enabled == !(f & SET_WHEN_SANE)
+           && (enabled || f & REV))
             {
-              wrapf ("%s", mode_info[i].name);
+              /* Announce this option (or its reverse) if the bits covered by
+               * this option are not in the pattern set by 'sane'. */
+              if (enabled)
+                wrapf ("%s", n);
+              else
+                wrapf ("-%s", n);
               empty_line = false;
             }
-        }
-      else if ((mode_info[i].flags & (SANE_SET | REV)) == (SANE_SET | REV))
-        {
-          wrapf ("-%s", mode_info[i].name);
-          empty_line = false;
         }
     }
   if (!empty_line)
@@ -2023,8 +2045,6 @@ display_changed (struct termios *mode)
 static void
 display_all (struct termios *mode, char const *device_name)
 {
-  tcflag_t *bitsp;
-  unsigned long mask;
   enum mode_type prev_type = control;
 
   display_speed (mode, true);
@@ -2071,21 +2091,26 @@ display_all (struct termios *mode, char const *device_name)
 
   for (int i = 0; mode_info[i].name != NULL; ++i)
     {
-      if (mode_info[i].flags & OMIT)
+      const enum mode_info_flags f = mode_info[i].flags;
+
+      if (f & OMIT)
         continue;
-      if (mode_info[i].type != prev_type)
+
+      const enum mode_type t = mode_info[i].type;
+      if (t != prev_type)
         {
           putchar ('\n');
           current_col = 0;
-          prev_type = mode_info[i].type;
+          prev_type = t;
         }
 
-      bitsp = mode_type_flag (mode_info[i].type, mode);
-      mask = mode_info[i].mask ? mode_info[i].mask : mode_info[i].bits;
-      if ((*bitsp & mask) == mode_info[i].bits)
-        wrapf ("%s", mode_info[i].name);
-      else if (mode_info[i].flags & REV)
-        wrapf ("-%s", mode_info[i].name);
+      const tcflag_t b = mode_info[i].bits;
+      const tcflag_t m = mode_info[i].mask | b;
+      const char * const n = mode_info[i].name;
+      if ((*mode_type_flag (t, mode) & m) == b)
+        wrapf ("%s", n);
+      else if (f & REV)
+        wrapf ("-%s", n);
     }
   putchar ('\n');
   current_col = 0;
@@ -2259,6 +2284,10 @@ sane_mode (struct termios *mode)
 {
   tcflag_t *bitsp;
 
+  /* "hard sane" overrides "soft sane" */
+  if (want_hard_sane)
+    want_soft_sane = want_hard_sane = false;
+
   for (int i = 0; control_info[i].name; ++i)
     {
 #if VMIN == VEOF
@@ -2270,24 +2299,25 @@ sane_mode (struct termios *mode)
 
   for (int i = 0; mode_info[i].name != NULL; ++i)
     {
-      if (mode_info[i].flags & NO_SETATTR)
+      const enum mode_info_flags f = mode_info[i].flags;
+
+      if (f & NO_SETATTR)
         continue;
 
-      if (mode_info[i].flags & IF_SOFT_SANE && !want_soft_sane)
+      if (!(f & (want_soft_sane ? IF_SOFT_SANE : IF_HARD_SANE)))
         continue;
 
-      if (mode_info[i].flags & SANE_SET)
-        {
-          bitsp = mode_type_flag (mode_info[i].type, mode);
-          assume (bitsp); /* combination modes will not have SANE_SET.  */
-          *bitsp = (*bitsp & ~mode_info[i].mask) | mode_info[i].bits;
-        }
-      else if (mode_info[i].flags & SANE_UNSET)
-        {
-          bitsp = mode_type_flag (mode_info[i].type, mode);
-          assume (bitsp); /* combination modes will not have SANE_UNSET.  */
-          *bitsp = *bitsp & ~mode_info[i].mask & ~mode_info[i].bits;
-        }
+      const enum mode_type t = mode_info[i].type;
+
+      bitsp = mode_type_flag (t, mode);
+      assume (bitsp); /* combination modes will have neither IF_HARD_SANE nor IF_SOFT_SANE */
+
+      const tcflag_t b = mode_info[i].bits;
+      const tcflag_t m = mode_info[i].mask | b;
+
+      *bitsp &= ~m;
+      if (f & SET_WHEN_SANE)
+        *bitsp |= b;
     }
 }
 
