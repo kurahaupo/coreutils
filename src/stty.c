@@ -184,20 +184,23 @@ enum mode_type
   };
 
 /* Flags for 'struct mode_info'. */
-#define SANE_SET 1		/* Set in 'sane' mode. */
-#define SANE_UNSET 2		/* Unset in 'sane' mode. */
-#define REV 4			/* Can be turned off by prepending '-'. */
-#define OMIT 8			/* Don't display value. */
-#define NO_SETATTR 16		/* tcsetattr not used to set mode bits.  */
+enum mode_info_flags
+  {
+    SANE_SET            = 1U << 0,	/* Set in 'sane' mode. */
+    SANE_UNSET          = 1U << 1,	/* Unset in 'sane' mode. */
+    REV                 = 1U << 2,	/* Can be turned off by prepending '-'. */
+    OMIT                = 1U << 3,	/* Don't display value. */
+    NO_SETATTR          = 1U << 4,	/* tcsetattr not used to set mode bits.  */
+  };
 
 /* Each mode.  */
 struct mode_info
   {
     char const *name;		/* Name given on command line.  */
     enum mode_type type;	/* Which structure element to change. */
-    char flags;			/* Setting and display options.  */
-    unsigned long bits;		/* Bits to set for this mode.  */
-    unsigned long mask;		/* Other bits to turn off for this mode.  */
+    enum mode_info_flags flags;	/* Setting and display options.  */
+    tcflag_t bits;		/* Bits to set for this mode.  */
+    tcflag_t mask;		/* Other bits to turn off for this mode.  */
   };
 
 static struct mode_info const mode_info[] =
